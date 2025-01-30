@@ -1,0 +1,54 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <!-- Account Section: Icon and User Name -->
+    <RelativeLayout
+        android:id="@+id/accountSection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="20dp">
+
+        <ImageView
+            android:id="@+id/accountIcon"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/icon_account_circle"
+            android:layout_alignParentLeft="true"
+            android:layout_marginEnd="16dp" />
+
+        <TextView
+            android:id="@+id/userNameTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="User Name"
+            android:textSize="18sp"
+            android:textColor="@android:color/black"
+            android:layout_toEndOf="@id/accountIcon"
+            android:layout_centerVertical="true" />
+
+    </RelativeLayout>
+
+    <!-- Summary Section: Display summarized data -->
+    <TextView
+        android:id="@+id/summaryTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Summary Data Here"
+        android:textSize="18sp"
+        android:textColor="@android:color/black"
+        android:layout_below="@id/accountSection"
+        android:layout_margin="20dp"/>
+
+    <!-- Button Section -->
+    <Button
+        android:id="@+id/navigateButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Submit"
+        android:textColor="@color/buttonColor"
+        android:layout_alignParentBottom="true"
+        android:padding="16dp"
+        android:backgroundTint="@android:color/darker_gray" />
+
+</RelativeLayout>

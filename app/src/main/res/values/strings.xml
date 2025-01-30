@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">PickMe</string>
+    <string name="my_app_api_key">AIzaSyCi5oQJq9geUjJNzICgFOKMz3V-s97wWR8</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+</resources>

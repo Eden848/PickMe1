@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/home"
+        android:icon="@drawable/baseline_apartment_24"
+        android:title="Home" />
+    <item
+        android:id="@+id/passenger"
+        android:icon="@drawable/baseline_airline_seat_recline_normal_24"
+        android:title="Passenger" />
+    <item
+        android:id="@+id/driver"
+        android:icon="@drawable/baseline_airport_shuttle_24"
+        android:title="Driver" />
+    <item
+        android:id="@+id/history"
+        android:icon="@drawable/baseline_auto_stories_24"
+        android:title="History" />
+</menu>
