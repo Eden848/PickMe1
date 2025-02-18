@@ -6,6 +6,7 @@ public class Driver {
     private String destination;
     private String numberOfSeats;
     private String comment;
+    private User user;
 
 
     public Driver() {}
@@ -16,6 +17,15 @@ public class Driver {
         this.numberOfSeats = numberOfSeats;
         this.comment = comment;
     }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
 
     public String getCurrentLocation() {
         return currentLocation;
