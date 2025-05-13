@@ -16,6 +16,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -85,12 +86,13 @@ public class MainActivity2 extends AppCompatActivity {
 
                         if (firebaseUser != null) {
                             String userId = firebaseUser.getUid();
+
                             User user1 = new User(name, age, email);
 
                             databaseReference.child(userId).setValue(user1)
                                     .addOnCompleteListener(dbTask -> {
                                         if (dbTask.isSuccessful()) {
-                                            // Send email verification
+
                                             firebaseUser.sendEmailVerification()
                                                     .addOnCompleteListener(emailTask -> {
                                                         if (emailTask.isSuccessful()) {
@@ -98,8 +100,7 @@ public class MainActivity2 extends AppCompatActivity {
                                                             Intent intent = new Intent(MainActivity2.this, MainActivity.class);
                                                             startActivity(intent);
                                                             finish();
-                                                        }
-                                                        else {
+                                                        } else {
                                                             Toast.makeText(MainActivity2.this, "Failed to send verification email: " + emailTask.getException().getMessage(), Toast.LENGTH_SHORT).show();
                                                         }
                                                     });
@@ -113,7 +114,6 @@ public class MainActivity2 extends AppCompatActivity {
                     }
                 });
     }
-
 
 }
 

@@ -1,12 +1,21 @@
 package com.example.pickme;
 
+
 import static com.example.pickme.R.*;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
-
+import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import androidx.fragment.app.Fragment;
@@ -21,6 +30,8 @@ public class HomeActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
+
+        startRideMonitorService();
 
         if (savedInstanceState == null) {
             loadFragment(new HomeFragment());
@@ -48,6 +59,19 @@ public class HomeActivity extends AppCompatActivity {
         });
     }
 
+
+    private void startRideMonitorService() {
+        Intent serviceIntent = new Intent(this, RideMonitorService.class);
+
+        // For Android Oreo (API 26) and above
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        } else {
+            // For earlier versions
+            startService(serviceIntent);
+        }
+    }
+
     private void loadFragment(Fragment fragment) {
         getSupportFragmentManager()
                 .beginTransaction()
@@ -55,5 +79,6 @@ public class HomeActivity extends AppCompatActivity {
                 .commit();
 
     }
+
 
 }

@@ -3,154 +3,260 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/hintColor"
     tools:context=".DriverFragment">
 
-    <fragment
-        android:id="@+id/map"
-        android:name="com.google.android.gms.maps.SupportMapFragment"
+    <!-- Top app bar with icon and title -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="@drawable/rounded_background_bottom"
+        android:gravity="center_vertical">
 
+        <ImageView
+            android:id="@+id/ivAppIcon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/baseline_airport_shuttle_24"
+            android:contentDescription="App icon" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Create a Ride"
+            android:textColor="@color/textColor"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginStart="12dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/dateTimeContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="90dp"
+        android:padding="50dp">
+
+        <TextView
+            android:id="@+id/tvSelectedDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Date: --/--/----"
+            android:textSize="16sp"
+            android:textColor="@color/background"
+            android:padding="10dp"
+            android:background="@drawable/rounded_corner"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginEnd="12dp" />
+
+        <TextView
+            android:id="@+id/tvSelectedTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Time: --:--"
+            android:textSize="16sp"
+            android:textColor="@color/background"
+            android:padding="10dp"
+            android:background="@drawable/rounded_corner"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+
+    <!-- Main content panel -->
     <RelativeLayout
         android:id="@+id/roundedBackground"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
+        android:layout_marginStart="0dp"
+        android:layout_marginEnd="0dp"
+        android:layout_marginBottom="0dp"
         android:layout_gravity="bottom"
         android:background="@drawable/rounded_background"
-        android:padding="16dp"
-        android:elevation="8dp">
+        android:padding="20dp"
+        android:elevation="12dp">
 
-        <!-- Main Title -->
-        <TextView
-            android:id="@+id/tvTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentTop="true"
-            android:layout_centerHorizontal="true"
-            android:text="Let's Pick Up People!"
-            android:textColor="@color/textColor"
-            android:textSize="20sp"
-            android:layout_marginBottom="16dp" />
-
-        <!-- Current Location Label -->
-        <TextView
-            android:id="@+id/tvCurrentLocationLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/tvTitle"
-            android:text="Current Location:"
-            android:textColor="@color/textColor"
-            android:textSize="16sp"
-            android:layout_marginBottom="4dp" />
-
-        <!-- Current Location Input -->
-        <EditText
-            android:id="@+id/editTextCurrentLocation"
+        <!-- Current Location Container -->
+        <LinearLayout
+            android:id="@+id/currentLocationContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@id/tvCurrentLocationLabel"
-            android:background="@drawable/rounded_corner"
-            android:hint="Enter your current location"
-            android:padding="16dp"
-            android:textColor="@color/textColor"
-            android:textColorHint="#7F000000"
-            android:textSize="18sp"
-            android:layout_marginBottom="16dp" />
+            android:orientation="vertical"
+            android:layout_marginBottom="16dp">
 
-        <!-- Destination Label -->
-        <TextView
-            android:id="@+id/tvDestinationLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/editTextCurrentLocation"
-            android:text="Destination:"
-            android:textColor="@color/textColor"
-            android:textSize="16sp"
-            android:layout_marginBottom="4dp" />
 
-        <!-- Destination Input -->
-        <AutoCompleteTextView
-            android:id="@+id/editTextDestination"
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvCurrentLocationLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Current Location:"
+                    android:textColor="@color/textColor"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginBottom="4dp" />
+            </LinearLayout>
+
+            <EditText
+                android:id="@+id/editTextCurrentLocation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/rounded_corner"
+                android:hint="Enter your current location"
+                android:padding="16dp"
+                android:textColor="@color/textColor"
+                android:textColorHint="@color/hintColor"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <!-- Destination Container -->
+        <LinearLayout
+            android:id="@+id/destinationContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@id/tvDestinationLabel"
-            android:background="@drawable/rounded_corner"
-            android:hint="Enter your destination"
-            android:padding="16dp"
-            android:textColor="@color/textColor"
-            android:textColorHint="#7F000000"
-            android:textSize="18sp"
-            android:layout_marginBottom="16dp"
-            android:popupBackground="@drawable/dropdown_background"
-            />
+            android:orientation="vertical"
+            android:layout_below="@id/currentLocationContainer"
+            android:layout_marginBottom="16dp">
 
-        <!-- Passengers Label -->
-        <TextView
-            android:id="@+id/tvPassengersLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/editTextDestination"
-            android:text="Number Of Available Seats:"
-            android:textColor="@color/textColor"
-            android:textSize="16sp"
-            android:layout_marginBottom="4dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-        <!-- Passengers Input -->
-        <EditText
-            android:id="@+id/editTextsSeats"
+
+                <TextView
+                    android:id="@+id/tvDestinationLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Destination:"
+                    android:textColor="@color/textColor"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginBottom="4dp" />
+            </LinearLayout>
+
+            <AutoCompleteTextView
+                android:id="@+id/editTextDestination"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/rounded_corner"
+                android:hint="Enter your destination"
+                android:padding="16dp"
+                android:textColor="@color/textColor"
+                android:textColorHint="@color/hintColor"
+                android:textSize="16sp"
+                android:popupBackground="@drawable/dropdown_background" />
+        </LinearLayout>
+
+        <!-- Seats Container -->
+        <LinearLayout
+            android:id="@+id/seatsContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@id/tvPassengersLabel"
-            android:background="@drawable/rounded_corner"
-            android:hint="Enter the number"
-            android:padding="16dp"
-            android:inputType="number"
-            android:textColor="@color/textColor"
-            android:textColorHint="#7F000000"
-            android:textSize="18sp"
-            android:layout_marginBottom="16dp" />
+            android:orientation="vertical"
+            android:layout_below="@id/destinationContainer"
+            android:layout_marginBottom="16dp">
 
-        <!-- Comments Label -->
-        <TextView
-            android:id="@+id/tvCommentsLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/editTextsSeats"
-            android:text="Comments for Passenger:"
-            android:textColor="@color/textColor"
-            android:textSize="16sp"
-            android:layout_marginBottom="4dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-        <!-- Comments Input -->
-        <EditText
-            android:id="@+id/editTextComments"
+
+                <TextView
+                    android:id="@+id/tvPassengersLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Available Seats:"
+                    android:textColor="@color/textColor"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginBottom="4dp" />
+            </LinearLayout>
+
+            <EditText
+                android:id="@+id/editTextsSeats"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/rounded_corner"
+                android:hint="Enter the number"
+                android:padding="16dp"
+                android:inputType="number"
+                android:textColor="@color/textColor"
+                android:textColorHint="@color/hintColor"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <!-- Comments Container -->
+        <LinearLayout
+            android:id="@+id/commentsContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@id/tvCommentsLabel"
-            android:background="@drawable/rounded_corner"
-            android:hint="Enter comments for the passenger"
-            android:padding="16dp"
-            android:inputType="textMultiLine"
-            android:textColor="@color/textColor"
-            android:textColorHint="#7F000000"
-            android:textSize="18sp" />
+            android:orientation="vertical"
+            android:layout_below="@id/seatsContainer"
+            android:layout_marginBottom="20dp">
 
-        <!-- Styled Button -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvCommentsLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Comments for Passenger:"
+                    android:textColor="@color/textColor"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginBottom="4dp" />
+            </LinearLayout>
+
+            <EditText
+                android:id="@+id/editTextComments"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/rounded_corner"
+                android:hint="Enter comments for passengers"
+                android:padding="16dp"
+                android:minLines="1"
+                android:gravity="top"
+                android:inputType="textMultiLine"
+                android:drawablePadding="12dp"
+                android:textColor="@color/textColor"
+                android:textColorHint="@color/hintColor"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <!-- Submit Button with gradient background -->
         <Button
             android:id="@+id/btnSubmit"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@id/editTextComments"
-            android:layout_marginTop="24dp"
-            android:layout_marginBottom="16dp"
-            android:backgroundTint="#2A2A2A"
-            android:padding="16dp"
-            android:text="Submit"
+            android:layout_below="@id/commentsContainer"
+            android:backgroundTint="@color/buttonback"
+            android:text="Become a Driver"
             android:textColor="@color/buttonColor"
-            android:textSize="18sp" />
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:padding="16dp"
+            android:elevation="4dp" />
 
     </RelativeLayout>
 

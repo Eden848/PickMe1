@@ -2,6 +2,8 @@ package com.example.pickme;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.DatePickerDialog;
+import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
@@ -9,6 +11,7 @@ import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -29,6 +32,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -44,6 +48,7 @@ import com.google.android.libraries.places.api.model.AutocompletePrediction;
 import com.google.android.libraries.places.api.model.AutocompleteSessionToken;
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest;
 import com.google.android.libraries.places.api.net.PlacesClient;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
@@ -53,6 +58,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Calendar;
 
 
 public class DriverFragment extends Fragment implements OnMapReadyCallback {
@@ -77,6 +83,8 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
     private PlacesClient placesClient;
 
     private TextView summaryTextView;
+    private TextView tvSelectedDate, tvSelectedTime;
+    private Calendar calendar;
 
     private RelativeLayout containerLayout;
 
@@ -88,7 +96,7 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(requireActivity());
 
         firebaseAuth = FirebaseAuth.getInstance();
-        databaseReference = FirebaseDatabase.getInstance().getReference("Users");
+        databaseReference = FirebaseDatabase.getInstance().getReference("Rides");
 
         Places.initialize(requireContext(), "AIzaSyCi5oQJq9geUjJNzICgFOKMz3V-s97wWR8", new Locale("he"));
         placesClient = Places.createClient(requireContext());
@@ -111,6 +119,11 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
 
         btnSubmit = view.findViewById(R.id.btnSubmit);
 
+        tvSelectedDate = view.findViewById(R.id.tvSelectedDate);
+        tvSelectedTime = view.findViewById(R.id.tvSelectedTime);
+
+        calendar = Calendar.getInstance();
+
         getCurrentLocationAndDisplayAddress();
         setupDestinationAutocomplete();
 
@@ -132,8 +145,39 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
 
         btnSubmit.setOnClickListener(v -> saveDriversData());
 
+        tvSelectedDate.setOnClickListener(v -> showDatePicker());
+        tvSelectedTime.setOnClickListener(v -> showTimePicker());
+
 
         return view;
+    }
+
+    private void showDatePicker() {
+        DatePickerDialog datePickerDialog = new DatePickerDialog(
+                requireContext(),
+                (view, year, month, dayOfMonth) -> {
+                    String selectedDate = dayOfMonth + "/" + (month + 1) + "/" + year;
+                    tvSelectedDate.setText("Date: " + selectedDate);
+                },
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)
+        );
+        datePickerDialog.show();
+    }
+
+    private void showTimePicker() {
+        TimePickerDialog timePickerDialog = new TimePickerDialog(
+                requireContext(),
+                (view, hourOfDay, minute) -> {
+                    String selectedTime = String.format("%02d:%02d", hourOfDay, minute);
+                    tvSelectedTime.setText("Time: " + selectedTime);
+                },
+                calendar.get(Calendar.HOUR_OF_DAY),
+                calendar.get(Calendar.MINUTE),
+                true
+        );
+        timePickerDialog.show();
     }
 
     private void replaceLayoutContent() {
@@ -259,13 +303,15 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
 
 
     private void saveDriversData() {
-
         String currentLoc = editTextCurrentLocation.getText().toString().trim();
         String destination = editTextDestination.getText().toString().trim();
         String numberOfSeats = editTextsSeats.getText().toString().trim();
         String comments = editTextComments.getText().toString().trim();
+        String date = tvSelectedDate.getText().toString().replace("Date: ", "").trim();
+        String time = tvSelectedTime.getText().toString().replace("Time: ", "").trim();
 
-        if (currentLoc.isEmpty() || destination.isEmpty() || numberOfSeats.isEmpty()) {
+
+        if (currentLoc.isEmpty() || destination.isEmpty() || numberOfSeats.isEmpty() || date.isEmpty() || time.isEmpty()) {
             Toast.makeText(requireContext(), "Please fill in all required fields.", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -277,18 +323,25 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
         }
 
         String userUID = currentUser.getUid();
+        // Create a Ride object with the data
+        Driver drive = new Driver(currentLoc, destination, numberOfSeats, comments, date, time, userUID);
 
-        Driver driver = new Driver(currentLoc, destination, numberOfSeats, comments);
-
-        databaseReference.child(userUID).child("Driver").setValue(driver).addOnCompleteListener(task -> {
+        // Save the data to Firebase under Rides/userUID/rideId
+        databaseReference.child(userUID).setValue(drive).addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
-                Toast.makeText(requireContext(), "You Are New A Driver!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Ride saved successfully!", Toast.LENGTH_SHORT).show();
+                replaceLayoutContent();
+
             } else {
-                Toast.makeText(requireContext(), "Failed to save trip details: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Failed to save ride details: " +
+                                (task.getException() != null ? task.getException().getMessage() : "Unknown error"),
+                        Toast.LENGTH_SHORT).show();
             }
         });
 
-        replaceLayoutContent();
+        /*BottomNavigationView nav = getActivity().findViewById(R.id.bottom_Navigation);
+        nav.setSelectedItemId(R.id.passenger);*/
+
     }
 
 

@@ -22,7 +22,6 @@ public class PickDriverActivity extends AppCompatActivity {
     private RecyclerView recyclerView;
     private DriverAdapter driverAdapter;
     private List<Driver> driverList;
-    private DatabaseReference databaseReference;
 
     @SuppressLint("MissingInflatedId")
     @Override
@@ -34,49 +33,91 @@ public class PickDriverActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         driverList = new ArrayList<>();
-        driverAdapter = new DriverAdapter(driverList);
+        driverAdapter = new DriverAdapter(driverList, this);
         recyclerView.setAdapter(driverAdapter);
-
-        databaseReference = FirebaseDatabase.getInstance().getReference("Users");
 
         fetchDrivers();
     }
 
     private void fetchDrivers() {
-        databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
+        DatabaseReference ridesRef = FirebaseDatabase.getInstance().getReference("Rides");
+        DatabaseReference usersRef = FirebaseDatabase.getInstance().getReference("Users");
+
+        ridesRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
                 driverList.clear();
+                final int[] loadedDrivers = {0};
+                final int totalDrivers = (int) snapshot.getChildrenCount();
 
-                for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
-                    String userName = userSnapshot.child("name").getValue(String.class);
-                    String userAge = userSnapshot.child("age").getValue(String.class);
-
-                    DataSnapshot driverSnapshot = userSnapshot.child("Driver");
-
-                    if (driverSnapshot.exists() && userName != null && userAge != null) {
-                        String location = driverSnapshot.child("currentLocation").getValue(String.class);
-                        String destination = driverSnapshot.child("destination").getValue(String.class);
-                        String seats = driverSnapshot.child("numberOfSeats").getValue(String.class);
-                        String comment = driverSnapshot.child("comment").getValue(String.class);
-
-                        // Create driver object and attach user details
-                        Driver driver = new Driver(location, destination, seats, comment);
-                        driver.setUser(new User(userName, userAge, ""));
-
-                        driverList.add(driver);
-                    }
+                if (totalDrivers == 0) {
+                    driverAdapter.notifyDataSetChanged();
+                    return;
                 }
 
-                driverAdapter.notifyDataSetChanged();
+                for (DataSnapshot rideSnapshot : snapshot.getChildren()) {
+                    Driver driver = rideSnapshot.getValue(Driver.class);
+                    if (driver != null) {
+                        // Assign UID from Firebase key
+                        String userId = rideSnapshot.getKey();
+                        driver.setUid(userId);
+
+                        // Add driver to list
+                        driverList.add(driver);
+
+                        // Fetch and associate the user
+                        if (userId != null && !userId.isEmpty()) {
+                            usersRef.child(userId).addListenerForSingleValueEvent(new ValueEventListener() {
+                                @Override
+                                public void onDataChange(@NonNull DataSnapshot userSnapshot) {
+                                    if (userSnapshot.exists()) {
+                                        String name = userSnapshot.child("name").getValue(String.class);
+                                        String age = userSnapshot.child("age").getValue(String.class);
+
+                                        if (name != null) {
+                                            User user = new User(name, age != null ? age : "", "");
+                                            driver.setUser(user);
+                                            Log.d("PickDriverActivity", "User linked to driver: " + name);
+                                        }
+                                    } else {
+                                        Log.d("PickDriverActivity", "No user data found for ID: " + userId);
+                                    }
+
+                                    loadedDrivers[0]++;
+                                    if (loadedDrivers[0] >= totalDrivers) {
+                                        driverAdapter.notifyDataSetChanged();
+                                    }
+                                }
+
+                                @Override
+                                public void onCancelled(@NonNull DatabaseError error) {
+                                    Log.e("FirebaseError", "Error loading user data: " + error.getMessage());
+                                    loadedDrivers[0]++;
+                                    if (loadedDrivers[0] >= totalDrivers) {
+                                        driverAdapter.notifyDataSetChanged();
+                                    }
+                                }
+                            });
+                        } else {
+                            loadedDrivers[0]++;
+                            if (loadedDrivers[0] >= totalDrivers) {
+                                driverAdapter.notifyDataSetChanged();
+                            }
+                        }
+                    } else {
+                        loadedDrivers[0]++;
+                        if (loadedDrivers[0] >= totalDrivers) {
+                            driverAdapter.notifyDataSetChanged();
+                        }
+                    }
+                }
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                Toast.makeText(PickDriverActivity.this, "Failed to load data", Toast.LENGTH_SHORT).show();
-                Log.e("FirebaseError", databaseError.getMessage());
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e("FirebaseError", "Error loading rides: " + error.getMessage());
+                Toast.makeText(PickDriverActivity.this, "Failed to load drivers.", Toast.LENGTH_SHORT).show();
             }
         });
     }
-
 }

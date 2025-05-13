@@ -19,7 +19,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Eden, 17"
-            android:textColor="@android:color/black"
+            android:textColor="@color/textColor"
             android:textSize="18sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
@@ -30,7 +30,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Location:"
-            android:textColor="@android:color/black"
+            android:textColor="@color/textColor"
             android:textSize="16sp"
             android:textStyle="bold" />
 
@@ -55,6 +55,26 @@
             android:layout_marginTop="4dp"
             android:textStyle="bold"/>
 
+        <TextView
+            android:id="@+id/dateText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Date:"
+            android:textColor="@color/textColor"
+            android:textSize="16sp"
+            android:layout_marginTop="4dp"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:id="@+id/timeText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Time:"
+            android:textColor="@color/textColor"
+            android:textSize="16sp"
+            android:layout_marginTop="4dp"
+            android:textStyle="bold"/>
+
         <!-- Comment -->
         <TextView
             android:id="@+id/textComment"
@@ -74,7 +94,7 @@
             android:text="Order Driver"
             android:textSize="16sp"
             android:textColor="@color/buttonColor"
-            android:backgroundTint="#2A2A2A"
+            android:backgroundTint="@color/buttonback"
             android:layout_marginTop="12dp"
             android:layout_gravity="center"/>
 

@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="background">#FFFFFF</color>
-    <color name="textColor">#FF000000</color>
-    <color name="hintColor">#7F000000</color>
+    <color name="background">#202124</color> <!-- Dark background -->
+    <color name="textColor">#F0F0F0</color> <!-- White text -->
+    <color name="buttonColor">#FF000000</color> <!-- Dark button -->
+    <color name="hintColor">#DBDBDB</color> <!-- Light gray hint -->
+    <color name="buttonback">#8FFFFFFF</color>
+
 </resources>

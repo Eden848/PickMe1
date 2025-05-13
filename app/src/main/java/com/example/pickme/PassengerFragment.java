@@ -1,293 +1,680 @@
 package com.example.pickme;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.location.Address;
-import android.location.Geocoder;
-import android.location.Location;
 import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
+import android.os.Handler;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
 import android.widget.Button;
-import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.core.app.ActivityCompat;
+import androidx.cardview.widget.CardView;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
 
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.maps.CameraUpdateFactory;
-import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.android.libraries.places.api.Places;
-import com.google.android.libraries.places.api.model.AutocompletePrediction;
-import com.google.android.libraries.places.api.model.AutocompleteSessionToken;
-import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest;
-import com.google.android.libraries.places.api.net.PlacesClient;
+import com.google.firebase.database.ServerValue;
+import com.google.firebase.database.ValueEventListener;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
+import java.util.HashMap;
+import java.util.Map;
 
-public class PassengerFragment extends Fragment implements OnMapReadyCallback {
+public class PassengerFragment extends Fragment {
 
-    private static final int FINE_LOCATION_REQUEST_CODE = 1;
-    private GoogleMap mMap;
-    private Location currentLocation;
-    private FusedLocationProviderClient fusedLocationProviderClient;
+    // UI components from XML
+    private TextView noActiveRidesText;
 
-    private FirebaseAuth firebaseAuth;
-    private DatabaseReference databaseReference;
+    // Shared ride container
+    private RelativeLayout sharedRideContainer;
+    private LinearLayout activeRideContainer;
 
-    private EditText CurrentLocation, NumberOfPassengers, Comments;
-    private AutoCompleteTextView Destination;
-    private Button btnSubmit;
+    // Driver information card and its elements
+    private CardView driverInfoCard;
+    private TextView driverName, driverFrom, driverTo, driverTime, driverSeats, driverComment;
 
-    // **Added Places API client and adapter**
-    private PlacesClient placesClient;
+    // Passenger information card and its elements
+    private CardView passengerInfoCard;
+    private TextView noPassengerInfo;
+    private LinearLayout passengerDetailsContainer;
+    private TextView passengerName, passengerFrom, passengerTo, passengerSeats, passengerComment;
 
+    // Driver UI elements
+    private LinearLayout driverControls;
+    private Button driverCancelRideButton;
+    private LinearLayout driverPassengerControls;
+    private Button acceptPassengerButton, declineButton;
 
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    // Passenger UI elements
+    private Button passengerCancelButton;
 
-        firebaseAuth = FirebaseAuth.getInstance();
-        databaseReference = FirebaseDatabase.getInstance().getReference("Users");
+    private TextView passengerStatus;
+    private Button startRideButton, endRideButton;
 
-        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(requireActivity());
-
-        Places.initialize(requireContext(), "AIzaSyCi5oQJq9geUjJNzICgFOKMz3V-s97wWR8", new Locale("he"));
-        placesClient = Places.createClient(requireContext());
-
-    }
+    // Firebase references
+    private DatabaseReference ridesReference, usersReference;
+    private String userId;
+    private boolean isDriver = false;
 
     @SuppressLint("MissingInflatedId")
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_passenger, container, false);
 
-        CurrentLocation = view.findViewById(R.id.editTextCurrentLocation);
-        Destination = view.findViewById(R.id.editTextDestination);
-        NumberOfPassengers = view.findViewById(R.id.editTextPassengers);
-        Comments = view.findViewById(R.id.editTextComments);
+        // Initialize views according to XML
+        noActiveRidesText = view.findViewById(R.id.no_active_rides);
 
-        btnSubmit = view.findViewById(R.id.btnSubmit);
+        // Shared container
+        sharedRideContainer = view.findViewById(R.id.shared_ride_container);
+        activeRideContainer = view.findViewById(R.id.active_ride_container);
 
-        getCurrentLocationAndDisplayAddress();
-        setupDestinationAutocomplete();
+        // Driver info card
+        driverInfoCard = view.findViewById(R.id.driver_info_card);
+        driverName = view.findViewById(R.id.driver_name);
+        driverFrom = view.findViewById(R.id.driver_from);
+        driverTo = view.findViewById(R.id.driver_to);
+        driverTime = view.findViewById(R.id.driver_time);
+        driverSeats = view.findViewById(R.id.driver_seats);
+        driverComment = view.findViewById(R.id.driver_comment);
 
-        // Restore the location if it exists
-        if (savedInstanceState != null) {
-            currentLocation = savedInstanceState.getParcelable("currentLocation");
-        }
+        // Passenger info card
+        passengerInfoCard = view.findViewById(R.id.passenger_info_card);
+        noPassengerInfo = view.findViewById(R.id.no_passenger_info);
+        passengerDetailsContainer = view.findViewById(R.id.passenger_details_container);
+        passengerName = view.findViewById(R.id.passenger_name);
+        passengerFrom = view.findViewById(R.id.passenger_from);
+        passengerTo = view.findViewById(R.id.passenger_to);
+        passengerSeats = view.findViewById(R.id.passenger_seats);
+        passengerComment = view.findViewById(R.id.passenger_comment);
 
-        // Set up the map
-        SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
-        if (mapFragment != null) {
-            mapFragment.getMapAsync(this);
-        }
+        // Driver controls
+        driverControls = view.findViewById(R.id.driver_controls);
+        driverCancelRideButton = view.findViewById(R.id.driver_cancel_ride_button);
+        driverPassengerControls = view.findViewById(R.id.driver_passenger_controls);
+        acceptPassengerButton = view.findViewById(R.id.accept_passenger_button);
+        declineButton = view.findViewById(R.id.decline_button);
 
-        // Fetch the last location if needed
-        if (currentLocation == null) {
-            getLastLocation();
-        }
+        // Passenger controls
+        passengerCancelButton = view.findViewById(R.id.passenger_cancel_button);
+        passengerStatus = view.findViewById(R.id.passenger_status);
 
-        btnSubmit.setOnClickListener(v -> savePassengerData());
+        // Initialize start ride button
+        startRideButton = new Button(getContext());
+        startRideButton.setText("Start Ride");
+        startRideButton.setBackgroundTintList(acceptPassengerButton.getBackgroundTintList());
+        startRideButton.setTextColor(acceptPassengerButton.getTextColors());
+        startRideButton.setPadding(
+                acceptPassengerButton.getPaddingLeft(),
+                acceptPassengerButton.getPaddingTop(),
+                acceptPassengerButton.getPaddingRight(),
+                acceptPassengerButton.getPaddingBottom()
+        );
+        startRideButton.setTextSize(16);
+        startRideButton.setLayoutParams(acceptPassengerButton.getLayoutParams());
 
+        // Initialize end ride button
+        endRideButton = new Button(getContext());
+        endRideButton.setText("End Ride");
+        endRideButton.setBackgroundTintList(acceptPassengerButton.getBackgroundTintList());
+        endRideButton.setTextColor(acceptPassengerButton.getTextColors());
+        endRideButton.setPadding(
+                acceptPassengerButton.getPaddingLeft(),
+                acceptPassengerButton.getPaddingTop(),
+                acceptPassengerButton.getPaddingRight(),
+                acceptPassengerButton.getPaddingBottom()
+        );
+        endRideButton.setTextSize(16);
+        endRideButton.setLayoutParams(acceptPassengerButton.getLayoutParams());
+
+        // Initialize Firebase references
+        userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        ridesReference = FirebaseDatabase.getInstance().getReference("Rides");
+        usersReference = FirebaseDatabase.getInstance().getReference("Users");
+
+        // Set up button click listeners
+        setupButtonListeners();
+
+        // Load user role and data
+        loadUserRole();
 
         return view;
     }
 
-    private void savePassengerData() {
-        String currentLoc = CurrentLocation.getText().toString().trim();
-        String destination = Destination.getText().toString().trim();
-        String numberOfPassengers = NumberOfPassengers.getText().toString().trim();
-        String comments = Comments.getText().toString().trim();
-
-        if (currentLoc.isEmpty() || destination.isEmpty() || numberOfPassengers.isEmpty()) {
-            Toast.makeText(requireContext(), "Please fill in all required fields.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        FirebaseUser currentUser = firebaseAuth.getCurrentUser();
-        if (currentUser == null) {
-            Toast.makeText(requireContext(), "User not logged in.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        String userUID = currentUser.getUid();
-
-        // Create a Passenger object
-        Passenger passenger = new Passenger(currentLoc, destination, numberOfPassengers, comments);
-
-        databaseReference.child(userUID).child("Passenger").setValue(passenger).addOnCompleteListener(task -> {
-            if (task.isSuccessful()) {
-                Toast.makeText(requireContext(), "Trip details saved successfully!", Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(requireContext(), PickDriverActivity.class);
-                startActivity(intent);
-            } else {
-                Toast.makeText(requireContext(), "Failed to save trip details: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
-            }
+    private void setupButtonListeners() {
+        // Driver's cancel ride button (when no passenger)
+        driverCancelRideButton.setOnClickListener(v -> {
+            // Implementation for driver canceling ride
+            Toast.makeText(getContext(), "Ride canceled by driver", Toast.LENGTH_SHORT).show();
+            deleteRide();
         });
-    }
 
-    private void getCurrentLocationAndDisplayAddress() {
-        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_REQUEST_CODE);
-            return;
-        }
+        // Accept passenger button listener
+        acceptPassengerButton.setOnClickListener(v -> {
+            // Implementation for accepting passenger
+            Toast.makeText(getContext(), "Passenger accepted", Toast.LENGTH_SHORT).show();
 
-        fusedLocationProviderClient.getLastLocation().addOnSuccessListener(location -> {
-            if (location != null) {
-                currentLocation = location;
+            // Update Firebase data to reflect passenger acceptance
+            updateRideStatus("accepted");
 
-                // Reverse geocode the current location to get the address
-                Geocoder geocoder = new Geocoder(requireContext(), new Locale("he"));
-                try {
-                    List<Address> addresses = geocoder.getFromLocation(currentLocation.getLatitude(), currentLocation.getLongitude(), 1);
-                    if (addresses != null && !addresses.isEmpty()) {
-                        Address address = addresses.get(0);
-                        String addressLine = address.getAddressLine(0);  // Get the full address line
+            // Replace "Accept Passenger" button with "Start Ride" button
+            LinearLayout parentLayout = (LinearLayout) acceptPassengerButton.getParent();
+            int index = parentLayout.indexOfChild(acceptPassengerButton);
+            parentLayout.removeView(acceptPassengerButton);
+            parentLayout.addView(startRideButton, index);
+        });
 
-                        // Set the address and city in the EditText
-                        String currentAddress = addressLine;
-                        CurrentLocation.setText(currentAddress);
+        // Start ride button click listener
+        startRideButton.setOnClickListener(v -> {
+            Toast.makeText(getContext(), "Ride started", Toast.LENGTH_SHORT).show();
+            updateRideStatus("in_progress");
+
+            // Hide decline button
+            declineButton.setVisibility(View.GONE);
+
+            // Replace start ride button with end ride button
+            LinearLayout parentLayout = (LinearLayout) startRideButton.getParent();
+            int index = parentLayout.indexOfChild(startRideButton);
+            parentLayout.removeView(startRideButton);
+            parentLayout.addView(endRideButton, index);
+        });
+
+        // End ride button click listener
+        endRideButton.setOnClickListener(v -> {
+            Toast.makeText(getContext(), "Ride ended", Toast.LENGTH_SHORT).show();
+            updateRideStatus("completed");
+
+            DatabaseReference ridesRef = FirebaseDatabase.getInstance().getReference("Rides");
+            DatabaseReference historyDriverRef = FirebaseDatabase.getInstance().getReference("HistoryDriver");
+            DatabaseReference historyPassengerRef = FirebaseDatabase.getInstance().getReference("HistoryPassenger");
+
+            String driverUID = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
+            ridesRef.child(driverUID).addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    if (snapshot.exists()) {
+                        // Step 1: Extract ONLY driver data (exclude "Passengers")
+                        Map<String, Object> driverData = new HashMap<>();
+                        for (DataSnapshot child : snapshot.getChildren()) {
+                            if (!child.getKey().equals("Passengers")) {
+                                driverData.put(child.getKey(), child.getValue());
+                            }
+                        }
+
+                        String rideId = FirebaseDatabase.getInstance().getReference().push().getKey();
+
+// Save driver data under HistoryDriver/driverUID/rideId
+                        historyDriverRef.child(driverUID).child(rideId).setValue(driverData)
+                                .addOnSuccessListener(aVoid -> {
+                                    // Handle passengers
+                                    DataSnapshot passengersSnap = snapshot.child("Passengers");
+                                    if (passengersSnap.exists()) {
+                                        for (DataSnapshot passengerEntry : passengersSnap.getChildren()) {
+                                            String passengerUID = passengerEntry.getKey();
+                                            Object passengerData = passengerEntry.getValue();
+
+                                            // Save under HistoryPassenger/passengerUID/rideId
+                                            historyPassengerRef.child(passengerUID).child(rideId).setValue(passengerData)
+                                                    .addOnSuccessListener(aVoid2 -> {
+                                                        // Remove ride only once after all is copied (optional)
+                                                        ridesRef.child(driverUID).removeValue();
+                                                        Toast.makeText(getContext(), "Ride saved with ID " + rideId, Toast.LENGTH_SHORT).show();
+                                                    })
+                                                    .addOnFailureListener(e -> {
+                                                        Log.e("Firebase", "Passenger save failed: " + e.getMessage());
+                                                    });
+                                        }
+                                    } else {
+                                        ridesRef.child(driverUID).removeValue();
+                                    }
+                                })
+                                .addOnFailureListener(e -> {
+                                    Log.e("Firebase", "Driver save failed: " + e.getMessage());
+                                });
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    Toast.makeText(requireContext(), "Error getting address", Toast.LENGTH_SHORT).show();
                 }
-            }
-        });
-    }
 
-    // **Added method to set up destination autocomplete**
-    private void setupDestinationAutocomplete() {
-        AutocompleteSessionToken token = AutocompleteSessionToken.newInstance();
-
-        List<String> suggestions = new ArrayList<>();
-        ArrayAdapter<String> destinationAdapter = new ArrayAdapter<>(
-                requireContext(),
-                R.layout.dropdown_item,  
-                suggestions
-        );
-        Destination.setAdapter(destinationAdapter);
-
-
-        Destination.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                if (!s.toString().isEmpty()) {
-                    fetchAutocompleteSuggestions(s.toString(), token, destinationAdapter);
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                    Log.e("Firebase", "DB Error: " + error.getMessage());
                 }
-            }
+            });
 
-            @Override
-            public void afterTextChanged(Editable s) {}
+            deleteRide();
         });
-        
-    }
 
-    private void fetchAutocompleteSuggestions(String query, AutocompleteSessionToken token, ArrayAdapter<String> destinationAdapter) {
-        FindAutocompletePredictionsRequest request = FindAutocompletePredictionsRequest.builder()
-                .setQuery(query)
-                .setSessionToken(token)
-                .setCountries("IL")
-                .build();
+        // Decline button listener
+        declineButton.setOnClickListener(v -> {
+            // Implementation for declining passenger
+            Toast.makeText(getContext(), "Passenger declined", Toast.LENGTH_SHORT).show();
 
-        placesClient.findAutocompletePredictions(request)
-                .addOnSuccessListener(response -> {
-                    List<String> newSuggestions = new ArrayList<>();
-                    for (AutocompletePrediction prediction : response.getAutocompletePredictions()) {
-                        newSuggestions.add(prediction.getFullText(null).toString());
+            // Get the first passenger's ID
+            ridesReference.child(userId).child("Passengers").addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    if (snapshot.exists() && snapshot.getChildrenCount() > 0) {
+                        // For simplicity, get the first passenger
+                        String passengerUid = snapshot.getChildren().iterator().next().getKey();
+
+                        // Remove this passenger from the ride
+                        ridesReference.child(userId).child("Passengers").child(passengerUid).removeValue()
+                                .addOnSuccessListener(aVoid -> {
+                                    // Reset the ride status to "waiting"
+                                    ridesReference.child(userId).child("status").setValue("waiting")
+                                            .addOnSuccessListener(statusVoid -> {
+                                                Toast.makeText(getContext(), "Passenger removed and status reset", Toast.LENGTH_SHORT).show();
+
+                                                // Refresh the driver UI to show waiting for passengers
+                                                ridesReference.child(userId).addListenerForSingleValueEvent(new ValueEventListener() {
+                                                    @Override
+                                                    public void onDataChange(@NonNull DataSnapshot rideSnapshot) {
+                                                        if (rideSnapshot.exists()) {
+                                                            showDriverUI(rideSnapshot);
+                                                        }
+                                                    }
+
+                                                    @Override
+                                                    public void onCancelled(@NonNull DatabaseError error) {
+                                                        Toast.makeText(getContext(), "Failed to refresh ride data", Toast.LENGTH_SHORT).show();
+                                                    }
+                                                });
+                                            })
+                                            .addOnFailureListener(e -> {
+                                                Toast.makeText(getContext(), "Failed to reset ride status: " + e.getMessage(),
+                                                        Toast.LENGTH_SHORT).show();
+                                            });
+                                })
+                                .addOnFailureListener(e -> {
+                                    Toast.makeText(getContext(), "Failed to remove passenger: " + e.getMessage(),
+                                            Toast.LENGTH_SHORT).show();
+                                });
                     }
-                    destinationAdapter.clear();
-                    destinationAdapter.addAll(newSuggestions);
-                    destinationAdapter.notifyDataSetChanged();
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(requireContext(), "Error" + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
-    }
-
-
-    @Override
-    public void onMapReady(@NonNull GoogleMap googleMap) {
-        mMap = googleMap;
-
-        // Enable user location if permission is granted
-        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            mMap.setMyLocationEnabled(true);
-        }
-
-        // Update the map location if we already have it
-        if (currentLocation != null) {
-            updateMapLocation();
-        }
-    }
-
-    private void getLastLocation() {
-        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_REQUEST_CODE);
-            return;
-        }
-
-        Task<Location> task = fusedLocationProviderClient.getLastLocation();
-        task.addOnSuccessListener(location -> {
-            if (location != null) {
-                currentLocation = location;
-
-                // Update the map immediately if it's ready
-                if (mMap != null) {
-                    updateMapLocation();
                 }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                    Toast.makeText(getContext(), "Failed to access passenger data", Toast.LENGTH_SHORT).show();
+                }
+            });
+
+        });
+
+        // Cancel ride button listener for passenger
+        passengerCancelButton.setOnClickListener(v -> {
+            // Implementation for canceling ride
+            Toast.makeText(getContext(), "Ride canceled by passenger", Toast.LENGTH_SHORT).show();
+            // Remove passenger from ride in Firebase
+            removePassengerFromRide();
+        });
+    }
+
+
+    private void deleteRide() {
+        if (userId != null) {
+            ridesReference.child(userId).removeValue()
+                    .addOnSuccessListener(aVoid -> {
+                        Toast.makeText(getContext(), "Ride deleted successfully", Toast.LENGTH_SHORT).show();
+                        // Refresh UI
+                        showNoActiveRides();
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(getContext(), "Failed to delete ride: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    });
+        }
+    }
+
+    private void updateRideStatus(String status) {
+        // Update ride status in Firebase
+        if (userId != null) {
+            ridesReference.child(userId).child("status").setValue(status)
+                    .addOnSuccessListener(aVoid -> {
+                        // Success handling
+                        if (status.equals("accepted")) {
+                            Toast.makeText(getContext(), "Passenger accepted successfully", Toast.LENGTH_SHORT).show();
+                        } else if (status.equals("in_progress")) {
+                            Toast.makeText(getContext(), "Ride started successfully", Toast.LENGTH_SHORT).show();
+                        } else if (status.equals("completed")) {
+                            Toast.makeText(getContext(), "Ride completed successfully", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(getContext(), "Status updated successfully", Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        // Error handling
+                        Toast.makeText(getContext(), "Failed to update ride status: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    });
+        }
+    }
+
+    private void removePassengerFromRide() {
+        // Find which ride the passenger is part of
+        ridesReference.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                for (DataSnapshot rideSnapshot : snapshot.getChildren()) {
+                    String driverUid = rideSnapshot.getKey();
+                    DataSnapshot passengersSnapshot = rideSnapshot.child("Passengers");
+
+                    if (passengersSnapshot.hasChild(userId)) {
+                        // Remove passenger from ride
+                        ridesReference.child(driverUid).child("Passengers").child(userId).removeValue()
+                                .addOnSuccessListener(aVoid -> {
+                                    // Reset the ride status to "waiting"
+                                    ridesReference.child(driverUid).child("status").setValue("waiting")
+                                            .addOnSuccessListener(statusVoid -> {
+                                                Toast.makeText(getContext(), "Ride canceled and status reset", Toast.LENGTH_SHORT).show();
+                                                // Refresh UI
+                                                showNoActiveRides();
+                                            })
+                                            .addOnFailureListener(e -> {
+                                                Toast.makeText(getContext(), "Failed to reset ride status: " + e.getMessage(),
+                                                        Toast.LENGTH_SHORT).show();
+                                            });
+                                })
+                                .addOnFailureListener(e -> {
+                                    Toast.makeText(getContext(), "Failed to cancel ride: " + e.getMessage(),
+                                            Toast.LENGTH_SHORT).show();
+                                });
+                        break;
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(getContext(), "Failed to access ride data", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    private void updateMapLocation() {
-        LatLng currentLatLng = new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude());
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
-        mMap.addMarker(new MarkerOptions().position(currentLatLng).title("You are here"));
-    }
-
-    @Override
-    public void onSaveInstanceState(@NonNull Bundle outState) {
-        super.onSaveInstanceState(outState);
-        // Save the current location to the instance state
-        outState.putParcelable("currentLocation", currentLocation);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if (requestCode == FINE_LOCATION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                getLastLocation();
-            } else {
-                Toast.makeText(requireContext(), "Location permission denied, please allow the permission.", Toast.LENGTH_SHORT).show();
+    private void loadUserRole() {
+        // First check if user is a driver with an active ride
+        ridesReference.child(userId).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists()) {
+                    isDriver = true;
+                    showDriverUI(snapshot);
+                } else {
+                    // Not a driver, check if user is a passenger on any ride
+                    findPassengerRide();
+                }
             }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(getContext(), "Failed to load ride data", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void findPassengerRide() {
+        ridesReference.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                boolean foundRide = false;
+
+                for (DataSnapshot rideSnapshot : snapshot.getChildren()) {
+                    DataSnapshot passengersSnapshot = rideSnapshot.child("Passengers");
+                    if (passengersSnapshot.hasChild(userId)) {
+                        isDriver = false;
+                        showPassengerUI(rideSnapshot);
+                        foundRide = true;
+                        break;
+                    }
+                }
+
+                if (!foundRide) {
+                    // Show no active rides message
+                    showNoActiveRides();
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(getContext(), "Failed to load passenger data", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void showNoActiveRides() {
+        // Show message if no rides available
+        noActiveRidesText.setVisibility(View.VISIBLE);
+        sharedRideContainer.setVisibility(View.GONE);
+    }
+
+    private void showPassengerUI(DataSnapshot rideSnapshot) {
+        // Hide no rides message
+        noActiveRidesText.setVisibility(View.GONE);
+
+        // Show shared container
+        sharedRideContainer.setVisibility(View.VISIBLE);
+
+        // Configure UI for passenger view - rearrange cards to show passenger first
+        reorderCardsForPassenger();
+
+        // Configure controls
+        driverControls.setVisibility(View.GONE);
+        passengerCancelButton.setVisibility(View.VISIBLE);
+
+        // Show status for passenger
+        passengerStatus.setVisibility(View.VISIBLE);
+
+        // Get passenger details from ride
+        String passengerDestination = null;
+        String passengerLocation = null;
+        String seats = null;
+        String comment = null;
+
+        DataSnapshot passengerDataSnapshot = rideSnapshot.child("Passengers").child(userId);
+        if (passengerDataSnapshot.exists()) {
+            passengerDestination = passengerDataSnapshot.child("destination").getValue(String.class);
+            passengerLocation = passengerDataSnapshot.child("currentLocation").getValue(String.class);
+            seats = passengerDataSnapshot.child("numberOfPassengers").getValue(String.class);
+            comment = passengerDataSnapshot.child("comment").getValue(String.class);
         }
+
+        // Set passenger info details
+        noPassengerInfo.setVisibility(View.GONE);
+        passengerDetailsContainer.setVisibility(View.VISIBLE);
+
+        passengerFrom.setText("From: " + (passengerLocation != null ? passengerLocation : "Not specified"));
+        passengerTo.setText("To: " + (passengerDestination != null ? passengerDestination : "Not specified"));
+        passengerSeats.setText("Seats requested: " + (seats != null ? seats : "Not specified"));
+        passengerComment.setText(comment != null ? comment : "No comment");
+
+        // Load passenger name
+        loadUserInfo(userId, "Passenger: ", passengerName);
+
+        // Get ride details
+        String destination = rideSnapshot.child("destination").getValue(String.class);
+        String currentLocation = rideSnapshot.child("currentLocation").getValue(String.class);
+        String time = rideSnapshot.child("time").getValue(String.class);
+        String driverSeatsAvailable = rideSnapshot.child("numberOfSeats").getValue(String.class);
+        String driverCommentText = rideSnapshot.child("comment").getValue(String.class);
+
+        // Set driver ride details
+        driverFrom.setText("From: " + (currentLocation != null ? currentLocation : "Not specified"));
+        driverTo.setText("To: " + (destination != null ? destination : "Not specified"));
+        driverTime.setText(time != null ? time : "Time not specified");
+        driverSeats.setText("Available seats: " + (driverSeatsAvailable != null ? driverSeatsAvailable : "Not specified"));
+        driverComment.setText(driverCommentText != null ? driverCommentText : "No comment");
+
+        String rideStatus = rideSnapshot.child("status").getValue(String.class);
+        if (rideStatus != null && rideStatus.equals("accepted")) {
+            passengerStatus.setText("Driver is on the way!");
+            passengerStatus.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
+        } else if (rideStatus != null && rideStatus.equals("in_progress")) {
+            passengerStatus.setText("Ride in progress");
+            passengerStatus.setTextColor(getResources().getColor(android.R.color.holo_blue_dark));
+            // Hide cancel button once ride is in progress
+            passengerCancelButton.setVisibility(View.GONE);
+        } else {
+            passengerStatus.setText("Waiting for confirmation..");
+            passengerStatus.setTextColor(getResources().getColor(android.R.color.darker_gray));
+        }
+
+        // Load driver info
+        String driverUid = rideSnapshot.getKey();
+        if (driverUid != null) {
+            loadUserInfo(driverUid, "Driver: ", driverName);
+        }
+    }
+
+    private void showDriverUI(DataSnapshot rideSnapshot) {
+        // Hide no rides message
+        noActiveRidesText.setVisibility(View.GONE);
+
+        // Show shared container
+        sharedRideContainer.setVisibility(View.VISIBLE);
+
+        // Configure UI for driver view - rearrange cards to show driver first
+        reorderCardsForDriver();
+
+        // Configure controls
+        driverControls.setVisibility(View.VISIBLE);
+        passengerCancelButton.setVisibility(View.GONE);
+
+        // Hide status for driver
+        passengerStatus.setVisibility(View.GONE);
+
+        // Get ride details
+        String destination = rideSnapshot.child("destination").getValue(String.class);
+        String currentLocation = rideSnapshot.child("currentLocation").getValue(String.class);
+        String time = rideSnapshot.child("time").getValue(String.class);
+        String seats = rideSnapshot.child("numberOfSeats").getValue(String.class);
+        String comment = rideSnapshot.child("comment").getValue(String.class);
+        String rideStatus = rideSnapshot.child("status").getValue(String.class);
+
+        // Set driver info details
+        driverFrom.setText("From: " + (currentLocation != null ? currentLocation : "Not specified"));
+        driverTo.setText("To: " + (destination != null ? destination : "Not specified"));
+        driverTime.setText(time != null ? time : "Time not specified");
+        driverSeats.setText("Available seats: " + (seats != null ? seats : "Not specified"));
+        driverComment.setText(comment != null ? comment : "No comment");
+
+        // Load driver name (self info)
+        loadUserInfo(userId, "Driver: ", driverName);
+
+        // Check if there are passengers
+        DataSnapshot passengersSnapshot = rideSnapshot.child("Passengers");
+        if (passengersSnapshot.exists() && passengersSnapshot.getChildrenCount() > 0) {
+            // There are passengers
+            noPassengerInfo.setVisibility(View.GONE);
+            passengerDetailsContainer.setVisibility(View.VISIBLE);
+
+            // For simplicity, we'll just display the first passenger if there are multiple
+            DataSnapshot firstPassenger = passengersSnapshot.getChildren().iterator().next();
+            String passengerUid = firstPassenger.getKey();
+
+            if (passengerUid != null) {
+                // Load passenger name
+                loadUserInfo(passengerUid, "Passenger: ", passengerName);
+
+                // Get passenger details
+                String passengerDestination = firstPassenger.child("destination").getValue(String.class);
+                String passengerLocation = firstPassenger.child("currentLocation").getValue(String.class);
+                String passengerSeatsRequested = firstPassenger.child("numberOfPassengers").getValue(String.class);
+                String passengerCommentText = firstPassenger.child("comment").getValue(String.class);
+
+                // Set passenger details
+                passengerFrom.setText("From: " + (passengerLocation != null ? passengerLocation : "Not specified"));
+                passengerTo.setText("To: " + (passengerDestination != null ? passengerDestination : "Not specified"));
+                passengerSeats.setText("Seats requested: " + (passengerSeatsRequested != null ? passengerSeatsRequested : "1"));
+                passengerComment.setText(passengerCommentText != null ? passengerCommentText : "No comment");
+            }
+
+            // Show appropriate controls based on ride status
+            driverCancelRideButton.setVisibility(View.GONE);
+
+            if (rideStatus != null && rideStatus.equals("accepted")) {
+                // Show the startRideButton and hide acceptPassengerButton
+                driverPassengerControls.setVisibility(View.VISIBLE);
+                driverPassengerControls.removeView(acceptPassengerButton);
+                if (driverPassengerControls.indexOfChild(startRideButton) == -1) {
+                    driverPassengerControls.addView(startRideButton, 0);
+                }
+            } else if (rideStatus != null && rideStatus.equals("in_progress")) {
+                // Show the endRideButton and hide decline button
+                driverPassengerControls.setVisibility(View.VISIBLE);
+                declineButton.setVisibility(View.GONE);
+                driverPassengerControls.removeView(startRideButton);
+                if (driverPassengerControls.indexOfChild(endRideButton) == -1) {
+                    driverPassengerControls.addView(endRideButton, 0);
+                }
+            } else {
+                // Default: show accept/decline buttons
+                driverPassengerControls.setVisibility(View.VISIBLE);
+                if (driverPassengerControls.indexOfChild(acceptPassengerButton) == -1) {
+                    driverPassengerControls.addView(acceptPassengerButton, 0);
+                }
+                declineButton.setVisibility(View.VISIBLE);
+            }
+        } else {
+            // No passengers yet
+            noPassengerInfo.setVisibility(View.VISIBLE);
+            passengerDetailsContainer.setVisibility(View.GONE);
+
+            // Show only cancel button when no passenger
+            driverCancelRideButton.setVisibility(View.VISIBLE);
+            driverPassengerControls.setVisibility(View.GONE);
+        }
+    }
+
+    // Method to reorder cards for passenger view (passenger card first)
+    private void reorderCardsForPassenger() {
+        if (activeRideContainer != null) {
+            // Remove both cards
+            activeRideContainer.removeView(driverInfoCard);
+            activeRideContainer.removeView(passengerInfoCard);
+
+            // Add passenger card first, then driver card
+            activeRideContainer.addView(passengerInfoCard, 0);
+            activeRideContainer.addView(driverInfoCard, 1);
+        }
+    }
+
+    // Method to reorder cards for driver view (driver card first)
+    private void reorderCardsForDriver() {
+        if (activeRideContainer != null) {
+            // Remove both cards
+            activeRideContainer.removeView(driverInfoCard);
+            activeRideContainer.removeView(passengerInfoCard);
+
+            // Add driver card first, then passenger card
+            activeRideContainer.addView(driverInfoCard, 0);
+            activeRideContainer.addView(passengerInfoCard, 1);
+        }
+    }
+
+    private void loadUserInfo(String uid, String role, TextView textView) {
+        usersReference.child(uid).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists()) {
+                    String name = snapshot.child("name").getValue(String.class);
+                    String age = snapshot.child("age").getValue(String.class);
+                    textView.setText(role + (name != null ? name : "Unknown") +
+                            (age != null ? ", Age: " + age : ""));
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(getContext(), "Failed to load user info", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 }

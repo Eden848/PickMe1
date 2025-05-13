@@ -45,7 +45,7 @@
             android:inputType="textEmailAddress"
             android:padding="18dp"
             android:textColor="@color/textColor"
-            android:textColorHint="#7F000000"
+            android:textColorHint="@color/hintColor"
             android:textSize="20sp" />
 
         <EditText
@@ -58,7 +58,7 @@
             android:inputType="textPassword"
             android:padding="18dp"
             android:textColor="@color/textColor"
-            android:textColorHint="#7F000000"
+            android:textColorHint="@color/hintColor"
             android:textSize="20sp" />
 
         <CheckBox
@@ -75,7 +75,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="1dp"
-            android:backgroundTint="#2A2A2A"
+            android:backgroundTint="@color/buttonback"
             android:padding="18dp"
             android:textColor="@color/buttonColor"
             android:text="Login"
@@ -87,7 +87,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:background="@android:color/transparent"
-            android:textColor="#2A2A2A"
+            android:textColor="@color/textColor"
             android:padding="18dp"
             android:text="Dont have an account? Sign Up"
             android:textSize="15sp" />

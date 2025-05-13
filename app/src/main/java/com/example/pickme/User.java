@@ -38,7 +38,7 @@ public class User {
         return Driver;
     }
 
-    // Corrected setter method for the Driver
+    // Setter method for the Driver
     public void setDriver(Driver Driver) {
         this.Driver = Driver;
     }
