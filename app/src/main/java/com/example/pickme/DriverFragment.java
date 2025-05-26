@@ -60,36 +60,132 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Calendar;
 
-
+/**
+ * Fragment that handles driver functionality in the PickMe ride-sharing application.
+ * This fragment allows users to create and publish ride offers by providing their
+ * current location, destination, available seats, and scheduling information.
+ *
+ * <p>Key features include:</p>
+ * <ul>
+ *   <li>Automatic current location detection using GPS and FusedLocationProviderClient</li>
+ *   <li>Google Places API integration for destination autocomplete suggestions</li>
+ *   <li>Interactive Google Maps display with location markers</li>
+ *   <li>Date and time picker dialogs for ride scheduling</li>
+ *   <li>Firebase Authentication and Database integration</li>
+ *   <li>Dynamic UI updates and ride summary display</li>
+ *   <li>Location permission handling</li>
+ * </ul>
+ *
+ * <p>The fragment implements OnMapReadyCallback to handle Google Maps initialization
+ * and provides a comprehensive interface for drivers to create ride offers.</p>
+ *
+ * @author PickMe Development Team
+ * @version 1.0
+ * @since 1.0
+ */
 public class DriverFragment extends Fragment implements OnMapReadyCallback {
 
-
-
+    /**
+     * Request code for fine location permission requests.
+     */
     private static final int FINE_LOCATION_REQUEST_CODE = 1;
+
+    /**
+     * Google Maps instance for displaying location information.
+     */
     private GoogleMap gMap;
+
+    /**
+     * Current location of the device obtained through GPS.
+     */
     private Location currentLocation;
+
+    /**
+     * Client for accessing device location services.
+     */
     private FusedLocationProviderClient fusedLocationProviderClient;
 
+    /**
+     * Firebase Authentication instance for user management.
+     */
     private FirebaseAuth firebaseAuth;
+
+    /**
+     * Firebase Database reference pointing to the "Rides" node.
+     */
     private DatabaseReference databaseReference;
 
-    private EditText editTextCurrentLocation, editTextsSeats, editTextComments;
+    /**
+     * EditText for displaying and editing the current location.
+     */
+    private EditText editTextCurrentLocation;
+
+    /**
+     * EditText for inputting the number of available seats.
+     */
+    private EditText editTextsSeats;
+
+    /**
+     * EditText for additional comments about the ride.
+     */
+    private EditText editTextComments;
+
+    /**
+     * AutoCompleteTextView for destination input with autocomplete suggestions.
+     */
     private AutoCompleteTextView editTextDestination;
 
-    private Button btnSubmit, navigateButton;
+    /**
+     * Button for submitting the ride information.
+     */
+    private Button btnSubmit;
 
+    /**
+     * Button for navigation to other activities.
+     */
+    private Button navigateButton;
+
+    /**
+     * RelativeLayout container for dynamic content updates.
+     */
     private RelativeLayout relativeLayout;
 
+    /**
+     * Google Places API client for location autocomplete functionality.
+     */
     private PlacesClient placesClient;
 
+    /**
+     * TextView for displaying ride summary information.
+     */
     private TextView summaryTextView;
-    private TextView tvSelectedDate, tvSelectedTime;
+
+    /**
+     * TextView for displaying the selected date.
+     */
+    private TextView tvSelectedDate;
+
+    /**
+     * TextView for displaying the selected time.
+     */
+    private TextView tvSelectedTime;
+
+    /**
+     * Calendar instance for date and time operations.
+     */
     private Calendar calendar;
 
+    /**
+     * Container layout for dynamic UI content replacement.
+     */
     private RelativeLayout containerLayout;
 
-
-
+    /**
+     * Called when the fragment is first created.
+     * Initializes location services, Firebase instances, and Google Places API.
+     *
+     * @param savedInstanceState the saved instance state bundle
+     */
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -100,15 +196,23 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
 
         Places.initialize(requireContext(), "AIzaSyCi5oQJq9geUjJNzICgFOKMz3V-s97wWR8", new Locale("he"));
         placesClient = Places.createClient(requireContext());
-
-
     }
 
+    /**
+     * Creates and initializes the fragment's view hierarchy.
+     * Sets up all UI components, event listeners, and initializes map and location services.
+     *
+     * @param inflater the LayoutInflater object used to inflate views
+     * @param container the parent view that the fragment's UI will be attached to
+     * @param savedInstanceState the saved instance state bundle
+     * @return the root view of the fragment's layout
+     */
     @SuppressLint("MissingInflatedId")
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_driver, container, false);
 
+        // Initialize UI components
         editTextCurrentLocation = view.findViewById(R.id.editTextCurrentLocation);
         editTextDestination = view.findViewById(R.id.editTextDestination);
         editTextsSeats = view.findViewById(R.id.editTextsSeats);
@@ -148,10 +252,13 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
         tvSelectedDate.setOnClickListener(v -> showDatePicker());
         tvSelectedTime.setOnClickListener(v -> showTimePicker());
 
-
         return view;
     }
 
+    /**
+     * Displays a date picker dialog for selecting the ride date.
+     * Updates the selected date TextView with the chosen date.
+     */
     private void showDatePicker() {
         DatePickerDialog datePickerDialog = new DatePickerDialog(
                 requireContext(),
@@ -166,6 +273,10 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
         datePickerDialog.show();
     }
 
+    /**
+     * Displays a time picker dialog for selecting the ride time.
+     * Updates the selected time TextView with the chosen time in 24-hour format.
+     */
     private void showTimePicker() {
         TimePickerDialog timePickerDialog = new TimePickerDialog(
                 requireContext(),
@@ -180,6 +291,19 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
         timePickerDialog.show();
     }
 
+    /**
+     * Replaces the current layout content with a ride summary display.
+     * Creates a dynamic layout showing driver information, ride details,
+     * and a publish button for finalizing the ride offer.
+     *
+     * <p>This method:</p>
+     * <ul>
+     *   <li>Removes existing views from the container</li>
+     *   <li>Fetches driver information from Firebase</li>
+     *   <li>Creates a formatted summary of ride details</li>
+     *   <li>Adds navigation functionality to PickDriverActivity</li>
+     * </ul>
+     */
     private void replaceLayoutContent() {
         // Remove all views in the container
         containerLayout.removeAllViews();
@@ -301,7 +425,20 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
         }
     }
 
-
+    /**
+     * Saves the driver's ride data to Firebase Database.
+     * Validates all required fields before saving and provides user feedback.
+     * On successful save, triggers the layout content replacement to show ride summary.
+     *
+     * <p>Validation includes:</p>
+     * <ul>
+     *   <li>Current location must not be empty</li>
+     *   <li>Destination must not be empty</li>
+     *   <li>Number of seats must not be empty</li>
+     *   <li>Date and time must be selected</li>
+     *   <li>User must be authenticated</li>
+     * </ul>
+     */
     private void saveDriversData() {
         String currentLoc = editTextCurrentLocation.getText().toString().trim();
         String destination = editTextDestination.getText().toString().trim();
@@ -309,7 +446,6 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
         String comments = editTextComments.getText().toString().trim();
         String date = tvSelectedDate.getText().toString().replace("Date: ", "").trim();
         String time = tvSelectedTime.getText().toString().replace("Time: ", "").trim();
-
 
         if (currentLoc.isEmpty() || destination.isEmpty() || numberOfSeats.isEmpty() || date.isEmpty() || time.isEmpty()) {
             Toast.makeText(requireContext(), "Please fill in all required fields.", Toast.LENGTH_SHORT).show();
@@ -341,11 +477,21 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
 
         /*BottomNavigationView nav = getActivity().findViewById(R.id.bottom_Navigation);
         nav.setSelectedItemId(R.id.passenger);*/
-
     }
 
-
-
+    /**
+     * Gets the current device location and displays the corresponding address.
+     * Uses FusedLocationProviderClient to obtain location and Geocoder for reverse geocoding.
+     * Requires fine location permission and handles permission requests if needed.
+     *
+     * <p>The method:</p>
+     * <ul>
+     *   <li>Checks for location permissions</li>
+     *   <li>Requests location if permission is granted</li>
+     *   <li>Performs reverse geocoding to get readable address</li>
+     *   <li>Updates the current location EditText with the address</li>
+     * </ul>
+     */
     private void getCurrentLocationAndDisplayAddress() {
         if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_REQUEST_CODE);
@@ -376,6 +522,11 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
         });
     }
 
+    /**
+     * Sets up autocomplete functionality for the destination input field.
+     * Integrates with Google Places API to provide location suggestions as the user types.
+     * Creates an ArrayAdapter for displaying suggestions and sets up TextWatcher for input monitoring.
+     */
     private void setupDestinationAutocomplete() {
         AutocompleteSessionToken token = AutocompleteSessionToken.newInstance();
 
@@ -386,7 +537,6 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
                 suggestions
         );
         editTextDestination.setAdapter(destinationAdapter);
-
 
         editTextDestination.addTextChangedListener(new TextWatcher() {
             @Override
@@ -402,9 +552,16 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
             @Override
             public void afterTextChanged(Editable s) {}
         });
-
     }
 
+    /**
+     * Fetches autocomplete suggestions from Google Places API based on user input.
+     * Filters results to Israeli locations and updates the adapter with new suggestions.
+     *
+     * @param query the search query entered by the user
+     * @param token the autocomplete session token for API requests
+     * @param destinationAdapter the ArrayAdapter to update with new suggestions
+     */
     private void fetchAutocompleteSuggestions(String query, AutocompleteSessionToken token, ArrayAdapter<String> destinationAdapter) {
         FindAutocompletePredictionsRequest request = FindAutocompletePredictionsRequest.builder()
                 .setQuery(query)
@@ -427,6 +584,12 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
                 });
     }
 
+    /**
+     * Callback method triggered when Google Maps is ready for use.
+     * Enables user location display if permission is granted and updates map with current location.
+     *
+     * @param googleMap the GoogleMap instance that is ready for use
+     */
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         gMap = googleMap;
@@ -442,6 +605,11 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
         }
     }
 
+    /**
+     * Retrieves the device's last known location using FusedLocationProviderClient.
+     * Handles permission checking and updates the map location when successful.
+     * This method is called when current location is not available.
+     */
     private void getLastLocation() {
         if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_REQUEST_CODE);
@@ -461,12 +629,23 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
         });
     }
 
+    /**
+     * Updates the Google Maps display with the current location.
+     * Centers the map camera on the current location and adds a marker.
+     * This method is called after location is obtained and map is ready.
+     */
     private void updateMapLocation() {
         LatLng currentLatLng = new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude());
         gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
         gMap.addMarker(new MarkerOptions().position(currentLatLng).title("You are here"));
     }
 
+    /**
+     * Saves the current location to the instance state for configuration changes.
+     * Ensures location data persists through device rotations and other configuration changes.
+     *
+     * @param outState the Bundle in which to place the saved state
+     */
     @Override
     public void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
@@ -474,7 +653,15 @@ public class DriverFragment extends Fragment implements OnMapReadyCallback {
         outState.putParcelable("currentLocation", currentLocation);
     }
 
-
+    /**
+     * Handles the result of location permission requests.
+     * If permission is granted, attempts to get the last location.
+     * If denied, shows a toast message informing the user.
+     *
+     * @param requestCode the request code passed to requestPermissions()
+     * @param permissions the requested permissions
+     * @param grantResults the grant results for the corresponding permissions
+     */
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == FINE_LOCATION_REQUEST_CODE) {
